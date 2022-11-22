@@ -21,7 +21,7 @@ public class TeacherModelAsembler extends RepresentationModelAssemblerSupport<Te
     public TeacherModel toModel(Teacher entity) {
         TeacherModel teacherModel = instantiateModel(entity);
         teacherModel.add(linkTo(methodOn(TeacherController.class).getTeacher(entity.getId())).withSelfRel());
-        teacherModel.add(linkTo(methodOn(StudentController.class).getStudents(0, 3, "", "", entity.getId())).withRel("students"));
+        teacherModel.add(linkTo(StudentController.class).slash("?teacherId=" + entity.getId()).withRel("students"));
 
         teacherModel.setId(entity.getId());
         teacherModel.setAge(entity.getAge());

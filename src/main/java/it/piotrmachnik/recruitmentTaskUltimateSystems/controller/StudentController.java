@@ -9,8 +9,12 @@ import it.piotrmachnik.recruitmentTaskUltimateSystems.model.StudentModel;
 import it.piotrmachnik.recruitmentTaskUltimateSystems.repository.StudentRepository;
 import it.piotrmachnik.recruitmentTaskUltimateSystems.repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.convert.Delimiter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Order;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
@@ -50,29 +54,42 @@ public class StudentController {
             @RequestParam(defaultValue = "3") int size,
             @RequestParam(required = false) String firstName,
             @RequestParam(required = false) String lastName,
-            @RequestParam(required = false) Integer teacherId) {
+            @RequestParam(required = false) Integer teacherId,
+            @RequestParam(defaultValue = "id,desc") String[] sort) {
         try {
+            List<Order> orders = new ArrayList<Order>();
+
+            if (sort[0].contains(",")) {
+                for (String sortOrder : sort) {
+                    String[] _sort = sortOrder.split(",");
+                    orders.add(new Order((_sort[1].equals("asc") ? Sort.Direction.ASC : Sort.Direction.DESC), _sort[0]));
+                }
+            } else {
+                orders.add(new Order((sort[1].equals("asc") ? Sort.Direction.ASC : Sort.Direction.DESC), sort[0]));
+            }
+
+            Pageable pagingSort = PageRequest.of(page, size, Sort.by(orders));
 
             Page<Student> pageStudents = null;
             if (teacherId != null) {
                 if (firstName != null && firstName != "" && lastName != null && lastName != "") {
-                    pageStudents = studentRepository.findByFirstNameAndLastNameAndTeachersId(firstName, lastName, teacherId, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByFirstNameAndLastNameAndTeachersId(firstName, lastName, teacherId, pagingSort);
                 } else if (firstName != "" && firstName != null) {
-                    pageStudents = studentRepository.findByFirstNameAndTeachersId(firstName, teacherId, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByFirstNameAndTeachersId(firstName, teacherId, pagingSort);
                 } else if (lastName != "" && lastName != null) {
-                    pageStudents = studentRepository.findByLastNameAndTeachersId(lastName, teacherId, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByLastNameAndTeachersId(lastName, teacherId, pagingSort);
                 } else {
-                    pageStudents = studentRepository.findByTeachersId(teacherId, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByTeachersId(teacherId, pagingSort);
                 }
             } else {
                 if (firstName != null && lastName != null) {
-                    pageStudents = studentRepository.findByFirstNameAndLastName(firstName, lastName, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByFirstNameAndLastName(firstName, lastName, pagingSort);
                 } else if (firstName != null) {
-                    pageStudents = studentRepository.findByFirstName(firstName, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByFirstName(firstName, pagingSort);
                 } else if (lastName != null) {
-                    pageStudents = studentRepository.findByLastName(lastName, PageRequest.of(page, size));
+                    pageStudents = studentRepository.findByLastName(lastName, pagingSort);
                 } else {
-                    pageStudents = studentRepository.findAll(PageRequest.of(page, size));
+                    pageStudents = studentRepository.findAll(pagingSort);
                 }
             }
 
@@ -108,7 +125,7 @@ public class StudentController {
     @PutMapping("/{id}/addTeacher")
     public ResponseEntity<?> addTeacherToStudent(@PathVariable("id") Integer id,
                                                  @Valid @RequestBody(required = false) Teacher teacher,
-                                                 @RequestParam(required = false) Integer... teacherId) {
+                                                 @RequestParam(required = false) Integer[] teacherId) {
         Optional<Student> student = studentRepository.findById(id);
         if (student.isEmpty()) {
             throw new EntityNotFoundException("Student with Id: " + id + " not found");
@@ -142,7 +159,8 @@ public class StudentController {
     }
 
     @DeleteMapping("/{id}/removeTeacher")
-    public ResponseEntity<?> removeTeacherFromStudent(@PathVariable("id") Integer id, @RequestParam Integer... teacherId) {
+    public ResponseEntity<?> removeTeacherFromStudent(@PathVariable("id") Integer id,
+                                                      @RequestParam Integer[] teacherId) {
         Optional<Student> student = studentRepository.findById(id);
         if (student.isEmpty()) {
             throw new EntityNotFoundException("Student with Id: " + id + " not found");
